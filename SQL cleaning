@@ -1,6 +1,9 @@
 -- SQL Project - Data Cleaning
 
--- https://www.kaggle.com/datasets/swaptr/layoffs-2022
+
+
+
+-- https://####/colon_cancers-2022
 
 
 
@@ -8,16 +11,16 @@
 
 
 SELECT * 
-FROM world_layoffs.layoffs;
+FROM world_colon_cancers.colon_cancers;
 
 
 
 -- first thing we want to do is create a staging table. This is the one we will work in and clean the data. We want a table with the raw data in case something happens
-CREATE TABLE world_layoffs.layoffs_staging 
-LIKE world_layoffs.layoffs;
+CREATE TABLE world_colon_cancers.colon_cancers_staging 
+LIKE world_colon_cancers.colon_cancers;
 
-INSERT layoffs_staging 
-SELECT * FROM world_layoffs.layoffs;
+INSERT colon_cancers_staging 
+SELECT * FROM world_colon_cancers.colon_cancers;
 
 
 -- now when we are data cleaning we usually follow a few steps
@@ -35,45 +38,45 @@ SELECT * FROM world_layoffs.layoffs;
 
 
 SELECT *
-FROM world_layoffs.layoffs_staging
+FROM world_colon_cancers.colon_cancers_staging
 ;
 
-SELECT company, industry, total_laid_off,`date`,
+SELECT stage, agression_status, total_colon_cancer,`date`,
 		ROW_NUMBER() OVER (
-			PARTITION BY company, industry, total_laid_off,`date`) AS row_num
+			PARTITION BY stage, agression_status, total_colon_cancer,`date`) AS row_num
 	FROM 
-		world_layoffs.layoffs_staging;
+		world_colon_cancers.colon_cancers_staging;
 
 
 
 SELECT *
 FROM (
-	SELECT company, industry, total_laid_off,`date`,
+	SELECT stage, agression_status, total_colon_cancer,`date`,
 		ROW_NUMBER() OVER (
-			PARTITION BY company, industry, total_laid_off,`date`
+			PARTITION BY stage, agression_status, total_colon_cancer,`date`
 			) AS row_num
 	FROM 
-		world_layoffs.layoffs_staging
+		world_colon_cancers.colon_cancers_staging
 ) duplicates
 WHERE 
 	row_num > 1;
     
 -- let's just look at oda to confirm
 SELECT *
-FROM world_layoffs.layoffs_staging
-WHERE company = 'Oda'
+FROM world_colon_cancers.colon_cancers_staging
+WHERE stage = 'Oda'
 ;
 -- it looks like these are all legitimate entries and shouldn't be deleted. We need to really look at every single row to be accurate
 
 -- these are our real duplicates 
 SELECT *
 FROM (
-	SELECT company, location, industry, total_laid_off,percentage_laid_off,`date`, stage, country, funds_raised_millions,
+	SELECT stage, location, agression_status, total_colon_cancer,percentage_colon_cancer,`date`, stage, state, funds_raised_millions,
 		ROW_NUMBER() OVER (
-			PARTITION BY company, location, industry, total_laid_off,percentage_laid_off,`date`, stage, country, funds_raised_millions
+			PARTITION BY stage, location, agression_status, total_colon_cancer,percentage_colon_cancer,`date`, stage, state, funds_raised_millions
 			) AS row_num
 	FROM 
-		world_layoffs.layoffs_staging
+		world_colon_cancers.colon_cancers_staging
 ) duplicates
 WHERE 
 	row_num > 1;
@@ -85,12 +88,12 @@ WITH DELETE_CTE AS
 (
 SELECT *
 FROM (
-	SELECT company, location, industry, total_laid_off,percentage_laid_off,`date`, stage, country, funds_raised_millions,
+	SELECT stage, location, agression_status, total_colon_cancer,percentage_colon_cancer,`date`, stage, state, funds_raised_millions,
 		ROW_NUMBER() OVER (
-			PARTITION BY company, location, industry, total_laid_off,percentage_laid_off,`date`, stage, country, funds_raised_millions
+			PARTITION BY stage, location, agression_status, total_colon_cancer,percentage_colon_cancer,`date`, stage, state, funds_raised_millions
 			) AS row_num
 	FROM 
-		world_layoffs.layoffs_staging
+		world_colon_cancers.colon_cancers_staging
 ) duplicates
 WHERE 
 	row_num > 1
@@ -101,68 +104,68 @@ FROM DELETE_CTE
 
 
 WITH DELETE_CTE AS (
-	SELECT company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions, 
-    ROW_NUMBER() OVER (PARTITION BY company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions) AS row_num
-	FROM world_layoffs.layoffs_staging
+	SELECT stage, location, agression_status, total_colon_cancer, percentage_colon_cancer, `date`, stage, state, funds_raised_millions, 
+    ROW_NUMBER() OVER (PARTITION BY stage, location, agression_status, total_colon_cancer, percentage_colon_cancer, `date`, stage, state, funds_raised_millions) AS row_num
+	FROM world_colon_cancers.colon_cancers_staging
 )
-DELETE FROM world_layoffs.layoffs_staging
-WHERE (company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions, row_num) IN (
-	SELECT company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions, row_num
+DELETE FROM world_colon_cancers.colon_cancers_staging
+WHERE (stage, location, agression_status, total_colon_cancer, percentage_colon_cancer, `date`, stage, state, funds_raised_millions, row_num) IN (
+	SELECT stage, location, agression_status, total_colon_cancer, percentage_colon_cancer, `date`, stage, state, funds_raised_millions, row_num
 	FROM DELETE_CTE
 ) AND row_num > 1;
 
 -- one solution, which I think is a good one. Is to create a new column and add those row numbers in. Then delete where row numbers are over 2, then delete that column
 -- so let's do it!!
 
-ALTER TABLE world_layoffs.layoffs_staging ADD row_num INT;
+ALTER TABLE world_colon_cancers.colon_cancers_staging ADD row_num INT;
 
 
 SELECT *
-FROM world_layoffs.layoffs_staging
+FROM world_colon_cancers.colon_cancers_staging
 ;
 
-CREATE TABLE `world_layoffs`.`layoffs_staging2` (
-`company` text,
+CREATE TABLE `world_colon_cancers`.`colon_cancers_staging2` (
+`stage` text,
 `location`text,
-`industry`text,
-`total_laid_off` INT,
-`percentage_laid_off` text,
+`agression_status`text,
+`total_colon_cancer` INT,
+`percentage_colon_cancer` text,
 `date` text,
 `stage`text,
-`country` text,
+`state` text,
 `funds_raised_millions` int,
 row_num INT
 );
 
-INSERT INTO `world_layoffs`.`layoffs_staging2`
-(`company`,
+INSERT INTO `world_colon_cancers`.`colon_cancers_staging2`
+(`stage`,
 `location`,
-`industry`,
-`total_laid_off`,
-`percentage_laid_off`,
+`agression_status`,
+`total_colon_cancer`,
+`percentage_colon_cancer`,
 `date`,
 `stage`,
-`country`,
+`state`,
 `funds_raised_millions`,
 `row_num`)
-SELECT `company`,
+SELECT `stage`,
 `location`,
-`industry`,
-`total_laid_off`,
-`percentage_laid_off`,
+`agression_status`,
+`total_colon_cancer`,
+`percentage_colon_cancer`,
 `date`,
 `stage`,
-`country`,
+`state`,
 `funds_raised_millions`,
 		ROW_NUMBER() OVER (
-			PARTITION BY company, location, industry, total_laid_off,percentage_laid_off,`date`, stage, country, funds_raised_millions
+			PARTITION BY stage, location, agression_status, total_colon_cancer,percentage_colon_cancer,`date`, stage, state, funds_raised_millions
 			) AS row_num
 	FROM 
-		world_layoffs.layoffs_staging;
+		world_colon_cancers.colon_cancers_staging;
 
 -- now that we have this we can delete rows were row_num is greater than 2
 
-DELETE FROM world_layoffs.layoffs_staging2
+DELETE FROM world_colon_cancers.colon_cancers_staging2
 WHERE row_num >= 2;
 
 
@@ -174,113 +177,122 @@ WHERE row_num >= 2;
 -- 2. Standardize Data
 
 SELECT * 
-FROM world_layoffs.layoffs_staging2;
+FROM world_colon_cancers.colon_cancers_staging2;
 
--- if we look at industry it looks like we have some null and empty rows, let's take a look at these
-SELECT DISTINCT industry
-FROM world_layoffs.layoffs_staging2
-ORDER BY industry;
+-- if we look at agression_status it looks like we have some null and empty rows, let's take a look at these
+SELECT DISTINCT agression_status
+FROM world_colon_cancers.colon_cancers_staging2
+ORDER BY agression_status;
 
 SELECT *
-FROM world_layoffs.layoffs_staging2
-WHERE industry IS NULL 
-OR industry = ''
-ORDER BY industry;
+FROM world_colon_cancers.colon_cancers_staging2
+WHERE agression_status IS NULL 
+OR agression_status = ''
+ORDER BY agression_status;
 
 -- let's take a look at these
 SELECT *
-FROM world_layoffs.layoffs_staging2
-WHERE company LIKE 'Bally%';
+FROM world_colon_cancers.colon_cancers_staging2
+WHERE stage LIKE 'one%';
+
+SELECT *
+FROM world_colon_cancers.colon_cancers_staging2
+WHERE stage LIKE 'two%';
+
+SELECT *
+FROM world_colon_cancers.colon_cancers_staging2
+WHERE stage LIKE 'three%';
+
 -- nothing wrong here
 SELECT *
-FROM world_layoffs.layoffs_staging2
-WHERE company LIKE 'airbnb%';
+FROM world_colon_cancers.colon_cancers_staging2
+WHERE stage LIKE 'four%';
 
--- it looks like airbnb is a travel, but this one just isn't populated.
+-- it looks like four isn't populated.
 -- I'm sure it's the same for the others. What we can do is
--- write a query that if there is another row with the same company name, it will update it to the non-null industry values
+-- write a query that if there is another row with the same stage name, it will update it to the non-null agression_status values
 -- makes it easy so if there were thousands we wouldn't have to manually check them all
 
 -- we should set the blanks to nulls since those are typically easier to work with
-UPDATE world_layoffs.layoffs_staging2
-SET industry = NULL
-WHERE industry = '';
+UPDATE world_colon_cancers.colon_cancers_staging2
+SET agression_status = NULL
+WHERE agression_status = '';
 
 -- now if we check those are all null
 
 SELECT *
-FROM world_layoffs.layoffs_staging2
-WHERE industry IS NULL 
-OR industry = ''
-ORDER BY industry;
+FROM world_colon_cancers.colon_cancers_staging2
+WHERE agression_status IS NULL 
+OR agression_status = ''
+ORDER BY agression_status;
 
 -- now we need to populate those nulls if possible
 
-UPDATE layoffs_staging2 t1
-JOIN layoffs_staging2 t2
-ON t1.company = t2.company
-SET t1.industry = t2.industry
-WHERE t1.industry IS NULL
-AND t2.industry IS NOT NULL;
+UPDATE colon_cancers_staging2 t1
+JOIN colon_cancers_staging2 t2
+ON t1.stage = t2.stage
+SET t1.agression_status = t2.agression_status
+WHERE t1.agression_status IS NULL
+AND t2.agression_status IS NOT NULL;
 
--- and if we check it looks like Bally's was the only one without a populated row to populate this null values
+-- and if we check it looks like stages one was the only one without a populated row to populate this null values
 SELECT *
-FROM world_layoffs.layoffs_staging2
-WHERE industry IS NULL 
-OR industry = ''
-ORDER BY industry;
+FROM world_colon_cancers.colon_cancers_staging2
+WHERE agression_status IS NULL 
+OR agression_status = ''
+ORDER BY agression_status;
 
 -- ---------------------------------------------------
 
--- I also noticed the Crypto has multiple different variations. We need to standardize that - let's say all to Crypto
-SELECT DISTINCT industry
-FROM world_layoffs.layoffs_staging2
-ORDER BY industry;
+-- I also noticed the yes has multiple different variations. We need to standardize that - let's say all to yes
+SELECT DISTINCT agression_status
+FROM world_colon_cancers.colon_cancers_staging2
+ORDER BY agression_status;
 
-UPDATE layoffs_staging2
-SET industry = 'Crypto'
-WHERE industry IN ('Crypto Currency', 'CryptoCurrency');
+UPDATE colon_cancers_staging2
+SET agression_status = 'yes'
+WHERE agression_status IN ('yes');
 
 -- now that's taken care of:
-SELECT DISTINCT industry
-FROM world_layoffs.layoffs_staging2
-ORDER BY industry;
+SELECT DISTINCT agression_status
+FROM world_colon_cancers.colon_cancers_staging2
+ORDER BY agression_status;
 
 -- --------------------------------------------------
 -- we also need to look at 
 
 SELECT *
-FROM world_layoffs.layoffs_staging2;
+FROM world_colon_cancers.colon_cancers_staging2;
 
--- everything looks good except apparently we have some "United States" and some "United States." with a period at the end. Let's standardize this.
-SELECT DISTINCT country
-FROM world_layoffs.layoffs_staging2
-ORDER BY country;
+-- everything looks good except apparently we have some "Georgia" and some "Georgia." with a period at the end. Let's standardize this.
+SELECT DISTINCT state
+FROM world_colon_cancers.colon_cancers_staging2
+ORDER BY state;
 
-UPDATE layoffs_staging2
-SET country = TRIM(TRAILING '.' FROM country);
+UPDATE colon_cancers_staging2
+SET state = TRIM(TRAILING '.' FROM state);
 
 -- now if we run this again it is fixed
-SELECT DISTINCT country
-FROM world_layoffs.layoffs_staging2
-ORDER BY country;
+SELECT DISTINCT state
+FROM world_colon_cancers.colon_cancers_staging2
+ORDER BY state;
 
 
 -- Let's also fix the date columns:
 SELECT *
-FROM world_layoffs.layoffs_staging2;
+FROM world_colon_cancers.colon_cancers_staging2;
 
 -- we can use str to date to update this field
-UPDATE layoffs_staging2
+UPDATE colon_cancers_staging2
 SET `date` = STR_TO_DATE(`date`, '%m/%d/%Y');
 
 -- now we can convert the data type properly
-ALTER TABLE layoffs_staging2
+ALTER TABLE colon_cancers_staging2
 MODIFY COLUMN `date` DATE;
 
 
 SELECT *
-FROM world_layoffs.layoffs_staging2;
+FROM world_colon_cancers.colon_cancers_staging2;
 
 
 
@@ -288,7 +300,7 @@ FROM world_layoffs.layoffs_staging2;
 
 -- 3. Look at Null Values
 
--- the null values in total_laid_off, percentage_laid_off, and funds_raised_millions all look normal. I don't think I want to change that
+-- the null values in total_colon_cancer, percentage_colon_cancer, and funds_raised_millions all look normal. I don't think I want to change that
 -- I like having them null because it makes it easier for calculations during the EDA phase
 
 -- so there isn't anything I want to change with the null values
@@ -299,26 +311,26 @@ FROM world_layoffs.layoffs_staging2;
 -- 4. remove any columns and rows we need to
 
 SELECT *
-FROM world_layoffs.layoffs_staging2
-WHERE total_laid_off IS NULL;
+FROM world_colon_cancers.colon_cancers_staging2
+WHERE total_colon_cancer IS NULL;
 
 
 SELECT *
-FROM world_layoffs.layoffs_staging2
-WHERE total_laid_off IS NULL
-AND percentage_laid_off IS NULL;
+FROM world_colon_cancers.colon_cancers_staging2
+WHERE total_colon_cancer IS NULL
+AND percentage_colon_cancer IS NULL;
 
 -- Delete Useless data we can't really use
-DELETE FROM world_layoffs.layoffs_staging2
-WHERE total_laid_off IS NULL
-AND percentage_laid_off IS NULL;
+DELETE FROM world_colon_cancers.colon_cancers_staging2
+WHERE total_colon_cancer IS NULL
+AND percentage_colon_cancer IS NULL;
 
 SELECT * 
-FROM world_layoffs.layoffs_staging2;
+FROM world_colon_cancers.colon_cancers_staging2;
 
-ALTER TABLE layoffs_staging2
+ALTER TABLE colon_cancers_staging2
 DROP COLUMN row_num;
 
 
 SELECT * 
-FROM world_layoffs.layoffs_staging2;
+FROM world_colon_cancers.colon_cancers_staging2;
